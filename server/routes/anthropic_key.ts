@@ -53,29 +53,8 @@ export function registerAnthropicKeyRoutes(router: IRouter): void {
     }
   );
 
-  // Internal helper used by AI routes to read the raw key for forwarding
-  router.get(
-    {
-      path: '/api/babel/anthropic-key/raw',
-      options: { access: 'public' },
-      security: { authz: { enabled: false, reason: 'Server-side use only; forwards key to sigma-api' } },
-      validate: false,
-    },
-    async (context, _request, response) => {
-      const { elasticsearch } = await context.core;
-      const client = elasticsearch.client.asCurrentUser;
-      try {
-        const doc = await (client as any).get({ index: CONFIG_INDEX, id: ANTHROPIC_KEY_DOC_ID });
-        const key: string = doc._source?.value ?? '';
-        return response.ok({ body: { key } });
-      } catch (err: any) {
-        if (err?.statusCode === 404 || err?.meta?.statusCode === 404) {
-          return response.ok({ body: { key: '' } });
-        }
-        return response.internalError({ body: { message: 'Failed to retrieve Anthropic key' } });
-      }
-    }
-  );
+  // NOTE: there is intentionally no HTTP route that returns the unmasked key.
+  // Server-side callers (sigma_ai.ts) read it directly via readAnthropicKey() below.
 }
 
 // Helper used by sigma_ai.ts to read the Anthropic key from ES

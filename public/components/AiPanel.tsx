@@ -108,14 +108,14 @@ function ChatBubble({ message, onLoadRule, onClose }: ChatBubbleProps) {
           <EuiCode
             key={i}
             language={codeMatch[1] || 'yaml'}
-            style={{ display: 'block', whiteSpace: 'pre', fontSize: 11, marginTop: 6, marginBottom: 4 }}
+            style={{ display: 'block', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', fontSize: 11, marginTop: 6, marginBottom: 4 }}
           >
             {codeMatch[2]}
           </EuiCode>
         );
       }
       return (
-        <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>
+        <span key={i} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{part}</span>
       );
     });
   };
@@ -124,6 +124,9 @@ function ChatBubble({ message, onLoadRule, onClose }: ChatBubbleProps) {
     <div style={{ display: 'flex', justifyContent: isUser ? 'flex-end' : 'flex-start', marginBottom: 12 }}>
       <div style={{
         maxWidth: '88%',
+        minWidth: 0,
+        overflowWrap: 'anywhere',
+        wordBreak: 'break-word',
         padding: '10px 14px',
         borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
         background: isUser ? '#006BB4' : '#F5F7FA',
@@ -551,7 +554,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
 
                 {result.explanation && (
                   <EuiText size="s">
-                    <div dangerouslySetInnerHTML={{ __html: result.explanation.replace(/\n/g, '<br/>') }} />
+                    <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{result.explanation}</div>
                   </EuiText>
                 )}
 
@@ -568,7 +571,7 @@ export const AiPanel: React.FC<AiPanelProps> = ({
                         <EuiSpacer size="s" />
                         <EuiAccordion id="ai-changes" buttonContent="Changes made">
                           <EuiText size="s">
-                            <div dangerouslySetInnerHTML={{ __html: result.changes.replace(/\n/g, '<br/>') }} />
+                            <div style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{result.changes}</div>
                           </EuiText>
                         </EuiAccordion>
                       </>

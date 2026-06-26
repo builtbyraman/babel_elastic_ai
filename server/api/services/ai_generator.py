@@ -11,10 +11,13 @@ base URLs are forwarded from the Kibana plugin as request headers so they never
 need to be baked into the container image.
 """
 
+import ipaddress
 import json
 import logging
 import os
+import socket
 from typing import Optional
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,31 @@ PROVIDER_ANTHROPIC = "anthropic"
 PROVIDER_OPENAI = "openai"
 PROVIDER_OPENAI_COMPAT = "openai_compat"
 PROVIDER_OLLAMA = "ollama"  # alias for openai_compat
+
+
+def _assert_base_url_allowed(url: str) -> None:
+    """Guard against SSRF via an attacker-supplied LLM base_url.
+
+    Blocks link-local addresses — which include the 169.254.169.254 cloud-metadata
+    endpoint (AWS/GCP/Azure) — and known metadata hostnames. Localhost, private-LAN
+    and public hosts are allowed so local models (Ollama, LM Studio) keep working.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    if not host:
+        raise ValueError("Invalid LLM base_url")
+    if host in {"metadata.google.internal", "metadata.goog"}:
+        raise ValueError(f"LLM base_url host '{host}' is not allowed")
+    try:
+        resolved = {info[4][0] for info in socket.getaddrinfo(host, None)}
+    except socket.gaierror:
+        return  # unresolvable — let the HTTP client surface the error normally
+    for ip in resolved:
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if addr.is_link_local:
+            raise ValueError("LLM base_url resolves to a link-local address (blocked for SSRF protection)")
 
 
 def _truncate_fields(fields: dict, max_fields: int = 80) -> dict:
@@ -71,6 +99,7 @@ def _call_llm(
             "http://host.docker.internal:11434/v1" if provider == PROVIDER_OLLAMA
             else "https://api.openai.com/v1"
         )
+        _assert_base_url_allowed(effective_base)
         effective_key = api_key or os.getenv("OPENAI_API_KEY", "ollama")
         effective_model = model or (
             "llama3.2" if provider == PROVIDER_OLLAMA else DEFAULT_OPENAI_MODEL
@@ -130,6 +159,7 @@ def _call_llm_chat(
             "http://host.docker.internal:11434/v1" if provider == PROVIDER_OLLAMA
             else "https://api.openai.com/v1"
         )
+        _assert_base_url_allowed(effective_base)
         effective_key = api_key or os.getenv("OPENAI_API_KEY", "ollama")
         effective_model = model or (
             "llama3.2" if provider == PROVIDER_OLLAMA else DEFAULT_OPENAI_MODEL
