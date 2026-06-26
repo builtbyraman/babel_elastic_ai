@@ -80,7 +80,7 @@ The plugin forwards the full YAML text of every SIGMA rule to the external Sigma
 - Enable bearer token authentication on the API if it is exposed beyond localhost, and set `SIGMA_API_KEY` in the Kibana server environment.
 - Never expose the Sigma API port (default: 8001) on a public network interface.
 - Ensure the API deployment complies with your organization's data residency requirements.
-- Note that when the AI features are used, rule and alert data can travel one hop further — from the Sigma API to the configured LLM provider (see §9).
+- Note that when the AI features are used, rule and alert data can travel one hop further — from the Sigma API to the configured LLM provider (see §9). The LLM `base_url` is validated to block link-local / cloud-metadata addresses (§9).
 
 ### 4. GitHub repository content integrity
 
@@ -135,13 +135,17 @@ The AI Assistant (draft-from-IOCs, explain, improve, draft-from-alert, chat) for
 - **Third-party provider (Anthropic, OpenAI)** — rule logic and alert data are transmitted to that vendor's API and are subject to the vendor's data-handling and retention policies.
 - **Kibana connector mode** — inference runs through the Kibana Actions framework using a pre-configured connector, so the model credentials stay inside Kibana.
 
-When a third-party provider is used, its API key is stored as plaintext in the `sui_config` index (masked only on read-back) — the same at-rest exposure as the GitHub PAT (§2).
+When a third-party provider is used, its API key is stored as plaintext in the `sui_config` index (masked on read-back, and no endpoint returns it unmasked) — the same at-rest exposure as the GitHub PAT (§2).
 
 **Mitigations:**
 - For sensitive or regulated environments, keep the **local Ollama provider** (the default) so detection logic and alert data never leave your network.
 - Restrict the `sui_config` index to administrators and the Kibana service account (§6).
 - Before selecting a third-party provider, confirm its data-retention terms meet your data-residency and confidentiality requirements.
 - The AI routes inherit the Sigma API's auth posture — do not expose port `8001` beyond loopback (§3).
+
+**Built-in safeguards (2.0.0):**
+- LLM output (rule explanations and change summaries) is rendered as **escaped text** in the UI, not HTML — so HTML/JavaScript emitted by a model, or injected via prompt-injection from synced rule/alert content, cannot execute in the analyst's session.
+- The LLM `base_url` is **validated to reject link-local / cloud-metadata addresses** (e.g. `169.254.169.254`, GCP metadata host), blocking SSRF to instance metadata from the Sigma API container. Localhost and private-LAN addresses remain allowed so local models keep working — so an authenticated user can still reach private-network services by design.
 
 ### 10. MCP server — local agent access
 
