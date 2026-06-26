@@ -304,6 +304,21 @@ No API key is stored in Babel — credentials live in Kibana's encrypted connect
 
 Inference then runs through Kibana's Actions framework, so model credentials never pass through Babel or leave Kibana.
 
+### Setting the model name
+
+The **Model** field is provider-specific — getting it wrong is the most common cause of "model not found" errors or empty AI output. In **connector** mode the field is ignored (the model is set in the Kibana connector).
+
+| Provider | What to put in **Model** | How to find it |
+|---|---|---|
+| **Ollama (local)** | The exact name from `ollama list`, **including the `:tag`** | Run `ollama list` and copy the NAME column verbatim — e.g. `llama3.2`, `mistral:7b`, or the shipped default `hf.co/yuxinlu1/gemma-4-12B-coder-fable5-composer2.5-v1-GGUF:Q4_K_M`. The tag matters. |
+| **LM Studio / llama.cpp** (OpenAI-compatible) | The model id the server reports | LM Studio: the loaded model's API identifier. llama-server: usually the filename, or whatever `GET {base_url}/models` returns. |
+| **Anthropic** | A Claude model id | e.g. `claude-sonnet-4-6` (the default). See Anthropic's model list. |
+| **OpenAI** | An OpenAI model id | e.g. `gpt-4o`, `gpt-4o-mini`. |
+| **Azure OpenAI** | Your **deployment name** (not the base model) | Azure OpenAI resource → Deployments. Also set **Base URL** to your Azure endpoint. |
+| **Elastic Connector** | *(leave blank)* | The model is configured **in the Kibana connector** — Babel's Model field is ignored in connector mode. |
+
+> **Local model tip:** if the AI panel returns nothing or "model not found," the Model name almost certainly doesn't match `ollama list`. Pull it first (`ollama pull <name>`), then paste the exact name. A 12B model wants ~8 GB RAM/VRAM and runs ~30–60 s/request on CPU; use a smaller quant (Q3/Q2) or model to go faster.
+
 ### Where keys are stored
 
 | Provider | Credential location |
