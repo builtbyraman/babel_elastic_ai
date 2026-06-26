@@ -66,6 +66,16 @@ The Settings panel shows live connectivity to the Babel API and Elasticsearch, a
 
 ![Settings panel showing Babel API ok, Elasticsearch v9.3.4 ok, and configured repositories](docs/screenshots/08_status_page.png)
 
+### AI Connectivity — choose your model/provider
+The **AI connectivity** area of Settings offers three ways to wire AI — pick whatever fits your deployment. The **LLM Provider** panel selects the model that powers Babel's AI panel: a local model via Ollama (default), a hosted provider (Anthropic, OpenAI), an OpenAI-compatible endpoint, or a Kibana connector. Set the **Base URL** and **Model name** for your choice; keys are stored in Elasticsearch and never exposed to the browser.
+
+![AI connectivity LLM Provider panel with the OpenAI-compatible/Ollama option selected](docs/screenshots/07_settings_AI_Connectivity_ModelSelect.png)
+
+### AI Connectivity — external agents (MCP)
+The **External agents (MCP)** panel surfaces a ready-to-copy `.mcp.json` snippet for pointing Claude Desktop or Claude Code at Babel's MCP server — exposing the SIGMA tools (convert, validate, draft, explain, …) to an external agent, with no in-cluster or local model required. The panel reminds you the config holds a Kibana credential and links to the security notes.
+
+![AI connectivity External agents (MCP) panel showing the .mcp.json template and credentials warning](docs/screenshots/07_settings_AI_Connectivity_MPC.png)
+
 ---
 
 ## Features
