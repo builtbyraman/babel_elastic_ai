@@ -1,0 +1,122 @@
+services:
+
+  # ── Elasticsearch ────────────────────────────────────────────────────────────
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.4
+    container_name: babel-es
+    environment:
+      - discovery.type=single-node
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.license.self_generated.type=basic
+      - ES_JAVA_OPTS=-Xms512m -Xmx1g
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "curl -s -u elastic:${ELASTIC_PASSWORD:-changeme} http://localhost:9200/_cluster/health | grep -qv '\"status\":\"red\"'"
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  # One-time init: sets the kibana_system user password so Kibana can connect.
+  kibana-setup:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.3.4
+    container_name: babel-kibana-setup
+    restart: "no"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command:
+      - bash
+      - -c
+      - |
+        until curl -s -u "elastic:${ELASTIC_PASSWORD:-changeme}" \
+          -X POST http://elasticsearch:9200/_security/user/kibana_system/_password \
+          -H "Content-Type: application/json" \
+          -d "{\"password\":\"${KIBANA_SYSTEM_PASSWORD:-kibana_changeme}\"}" \
+          | grep -q "^{}"; do
+          sleep 2
+        done
+        echo "kibana_system password set"
+
+  # ── Kibana (with Babel plugin) ────────────────────────────────────────────────
+  # Requires target/babel/ — run "npm run build" first.
+  kibana:
+    build:
+      context: .
+      dockerfile: Dockerfile.kibana
+      args:
+        KIBANA_VERSION: "9.3.4"
+    container_name: babel-kibana
+    depends_on:
+      kibana-setup:
+        condition: service_completed_successfully
+      sigma-api:
+        condition: service_healthy
+    environment:
+      - SERVER_NAME=kibana
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD:-kibana_changeme}
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY:-a_32_character_encryption_key___}
+      # Point the plugin at the Sigma API (see sigma-api service below or bring your own).
+      # SIGMA_API_URL is read directly by the plugin via process.env as a fallback because
+      # Kibana does not forward dotted env var names to the plugin config service.
+      - SIGMA_API_URL=${SIGMA_API_URL:-http://sigma-api:8001/v1}
+      - babel.sigmaApiUrl=${SIGMA_API_URL:-http://sigma-api:8001/v1}
+      - babel.kibanaUrl=http://localhost:5601
+    ports:
+      - "127.0.0.1:5601:5601"
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "curl -s -I http://localhost:5601 | grep -q '302 Found'"
+      interval: 10s
+      timeout: 10s
+      retries: 30
+
+  # ── Sigma API (FastAPI, AI-capable) ──────────────────────────────────────────
+  # The AI-enabled backend (server/api). Wraps pySigma for rule conversion,
+  # validation, coverage, IR readiness, field mapping, quality scoring and live
+  # rule testing, AND exposes the /v1/ai/* endpoints that the LLM features call.
+  # (The Flask-only ./api service has no /ai routes — do not use it for AI.)
+  sigma-api:
+    build:
+      context: .
+      dockerfile: server/api/docker/Dockerfile
+    container_name: babel-api
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      - ELASTICSEARCH_SCHEME=http
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - PLUGIN_ROOT=/app/sigma_ai
+      - REQUIRE_AUTH=false
+      - LOG_LEVEL=INFO
+      # Anthropic key is optional — only used if you switch the provider back to Anthropic.
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+    # Lets the container reach a model server (Ollama / llama.cpp) running on the
+    # Docker host via http://host.docker.internal:<port> (needed on Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # Run on 8001 internally so the plugin's sigma-api:8001/v1 references line up.
+    command: python -m uvicorn main:app --host 0.0.0.0 --port 8001
+    ports:
+      - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8001/health')\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  es-data:

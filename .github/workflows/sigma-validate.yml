@@ -1,0 +1,99 @@
+name: Sigma Rule Validation
+
+on:
+  pull_request:
+    paths:
+      - 'rules/**/*.yml'
+      - 'rules/**/*.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'rules/**/*.yml'
+      - 'rules/**/*.yaml'
+
+jobs:
+  validate:
+    name: Validate Sigma Rules
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install pySigma + validators
+        run: |
+          pip install sigma-cli pySigma pySigma-backend-elasticsearch pySigma-pipeline-ecs-windows
+
+      - name: Detect changed rule files
+        id: changed
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD -- 'rules/**/*.yml' 'rules/**/*.yaml' | tr '\n' ' ')
+          else
+            FILES=$(git diff --name-only HEAD~1 HEAD -- 'rules/**/*.yml' 'rules/**/*.yaml' | tr '\n' ' ')
+          fi
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Validate changed rules
+        if: steps.changed.outputs.files != ''
+        run: |
+          FAILED=0
+          for f in ${{ steps.changed.outputs.files }}; do
+            echo "Validating $f"
+            sigma check "$f" || FAILED=1
+          done
+          exit $FAILED
+
+      - name: Convert rules (dry-run, EQL)
+        if: steps.changed.outputs.files != ''
+        run: |
+          for f in ${{ steps.changed.outputs.files }}; do
+            echo "Converting $f → EQL"
+            sigma convert -t eql -p ecs_windows "$f" > /dev/null
+          done
+
+  deploy:
+    name: Deploy to Kibana
+    runs-on: ubuntu-latest
+    needs: validate
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed rule files
+        id: changed
+        run: |
+          FILES=$(git diff --name-only HEAD~1 HEAD -- 'rules/**/*.yml' 'rules/**/*.yaml' | tr '\n' ' ')
+          echo "files=$FILES" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy changed rules via sigma_ai
+        if: steps.changed.outputs.files != ''
+        env:
+          SIGMA_AI_URL: ${{ secrets.SIGMA_AI_URL }}
+          SIGMA_AI_KEY: ${{ secrets.SIGMA_AI_KEY }}
+        run: |
+          for f in ${{ steps.changed.outputs.files }}; do
+            echo "Deploying $f"
+            RULE_YAML=$(cat "$f")
+            curl -sf -X POST "$SIGMA_AI_URL/api/sigma_ui/deploy" \
+              -H "Content-Type: application/json" \
+              -H "Authorization: Bearer $SIGMA_AI_KEY" \
+              -d "{
+                \"ruleYaml\": $(echo "$RULE_YAML" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),
+                \"format\": \"eql\",
+                \"pipeline\": \"ecs_windows\",
+                \"enabled\": true
+              }"
+            echo ""
+          done

@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "../.."
+		},
+		{
+			"path": "../../../pySigma-backend-elasticsearch-main"
+		},
+		{
+			"path": "../../../pySigma-main"
+		}
+	],
+	"settings": {}
+}
