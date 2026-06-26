@@ -25,6 +25,15 @@ const standaloneHttp: HttpService = {
     if (!res.ok) throw new Error(await res.text());
     return res.json();
   },
+  delete: async <T,>(url: string): Promise<T> => {
+    const res = await fetch(url, {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'kbn-xsrf': 'true' },
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  },
 };
 
 const container = document.getElementById('root')!;

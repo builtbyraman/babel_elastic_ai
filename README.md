@@ -247,7 +247,15 @@ docker-compose up --build -d  # rebuild images (after source changes)
 
 Babel's AI features (draft a rule from IOCs or an alert, explain a rule, improve a rule, and the chat assistant) call a Large Language Model through a provider **you** choose. **Out of the box, Babel is configured to use a local model served by Ollama — no API key, and no detection data leaves your host.** You can switch providers at any time.
 
-Configure it in the UI: open **Babel → ⚙ gear icon → AI Provider** (in the *Integration & Status* panel). Pick one of the four options below.
+Babel offers **three ways to connect AI** — pick whatever fits your deployment. All three are managed under **Babel → ⚙ gear icon → Integration & Status → AI connectivity**:
+
+| Method | What it powers | Needs a local model? | Best for |
+|---|---|---|---|
+| **1. In-app model** | Babel's own AI panel | No — unless you choose Ollama | Most setups: local Ollama, hosted Anthropic/OpenAI, or a Kibana connector |
+| **2. Elastic AI Assistant** (Agent Builder) | Babel's SIGMA agents inside Kibana's native Assistant | No | Elastic Cloud / managed Kibana; teams who work in Elastic's UI |
+| **3. External agents (MCP)** | Claude Desktop / Code driving Babel's tools | No | Analysts using Claude on their workstation |
+
+**Method 1 — In-app model** has four provider options, configured under *AI connectivity → AI Provider*. Pick one below.
 
 > **Prerequisite:** the AI endpoints live in the **Sigma API** (`server/api`) — the `sigma-api` container the Docker stack builds. If you run a different/older API, the AI panel will have nothing to call.
 
@@ -305,6 +313,18 @@ Inference then runs through Kibana's Actions framework, so model credentials nev
 | Elastic Connector | Kibana encrypted saved object (never stored in Babel) |
 
 For sensitive detection content, prefer **Ollama (local)** or an **Elastic Connector**. When a hosted provider is selected, rule/alert text is sent to that vendor — see [SECURITY.md](SECURITY.md) §9 (AI data egress) and restrict the `sui_config` index to administrators.
+
+### Method 2 — Elastic AI Assistant (Agent Builder)
+
+If your Kibana has **Agent Builder** enabled, Babel can register three SIGMA agents (IOC drafter, alert converter, rule advisor) into Elastic's **native AI Assistant**. They then run inside Kibana's Assistant using whatever LLM connector Elastic is configured with (e.g. Bedrock-Claude) and Elastic's own tools — so detection help is available even without Babel's panel or a local model.
+
+In **Integration & Status → AI connectivity → Elastic AI Assistant (Agent Builder)**, click **Register agents** (or **Remove** to unregister). If the panel shows *"not available on this Kibana,"* Agent Builder is disabled or unsupported on your version/license — use Method 1 or 3 instead.
+
+### Method 3 — External agents (MCP / Claude Desktop)
+
+Babel ships a Model Context Protocol server (`server/mcp/server.py`) that exposes its SIGMA tools to an external agent such as **Claude Desktop or Claude Code**. The agent's own model does the reasoning, so no local or in-cluster model is needed.
+
+In **Integration & Status → AI connectivity → External agents (MCP)**, copy the `.mcp.json` template, fill in the paths and your Kibana password, and add it to your MCP client. The config holds a credential — keep it out of version control (Babel git-ignores `.mcp.json`) and scope the account to least privilege. See [SECURITY.md](SECURITY.md) §10.
 
 ---
 

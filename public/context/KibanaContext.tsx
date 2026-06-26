@@ -3,6 +3,7 @@ import React, { createContext, useContext } from 'react';
 export interface HttpService {
   get<T = unknown>(path: string, options?: { query?: Record<string, unknown> }): Promise<T>;
   post<T = unknown>(path: string, options?: { body?: string }): Promise<T>;
+  delete<T = unknown>(path: string, options?: { query?: Record<string, unknown> }): Promise<T>;
 }
 
 export interface KibanaServices {

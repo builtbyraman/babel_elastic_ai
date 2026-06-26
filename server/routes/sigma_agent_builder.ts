@@ -163,4 +163,57 @@ export function registerSigmaAgentBuilderRoute(router: IRouter): void {
       return response.ok({ body: { agents: results } });
     }
   );
+
+  // Reports whether Elastic Agent Builder is available on this Kibana, and which of
+  // Babel's SIGMA agents are currently registered. Degrades gracefully: a 403/404
+  // from the Agent Builder API (feature gated / not present) returns available:false
+  // rather than an error, so the UI can show a "not available" state.
+  router.get(
+    {
+      path: '/api/babel/agent-builder/status',
+      options: { access: 'public' },
+      security: { authz: { enabled: false, reason: 'Agent Builder status uses Kibana auth forwarded from request' } },
+      validate: false,
+    },
+    async (_ctx, request, response) => {
+      const cookieHeader = request.headers['cookie'];
+      const userAuthHeader = request.headers['authorization'];
+      const kibanaHeaders: Record<string, string> = { 'kbn-xsrf': 'true' };
+      if (cookieHeader) kibanaHeaders['cookie'] = Array.isArray(cookieHeader) ? cookieHeader.join('; ') : cookieHeader as string;
+      if (userAuthHeader) kibanaHeaders['authorization'] = Array.isArray(userAuthHeader) ? userAuthHeader[0] : userAuthHeader as string;
+
+      const ids = SIGMA_AI_AGENTS.map(a => ({ id: a.id, name: a.name }));
+      try {
+        const res = await fetch(`${KIBANA_URL}/api/agent_builder/agents`, { method: 'GET', headers: kibanaHeaders });
+        if (!res.ok) {
+          // Feature gated (403) or absent (404) — report unavailable with the upstream code.
+          return response.ok({
+            body: {
+              available: false,
+              reason: `Elastic Agent Builder API returned HTTP ${res.status}. It may be disabled or require a feature flag/license on this Kibana.`,
+              agents: ids.map(a => ({ ...a, registered: false })),
+            },
+          });
+        }
+        const payload: any = await res.json().catch(() => null);
+        // Agent Builder may return an array or { results: [...] } / { agents: [...] }.
+        const list: any[] = Array.isArray(payload) ? payload : (payload?.results ?? payload?.agents ?? []);
+        const existing = new Set(list.map((a: any) => a?.id).filter(Boolean));
+        return response.ok({
+          body: {
+            available: true,
+            agents: ids.map(a => ({ ...a, registered: existing.has(a.id) })),
+          },
+        });
+      } catch (err: unknown) {
+        return response.ok({
+          body: {
+            available: false,
+            reason: err instanceof Error ? err.message : 'Could not reach the Elastic Agent Builder API',
+            agents: ids.map(a => ({ ...a, registered: false })),
+          },
+        });
+      }
+    }
+  );
 }

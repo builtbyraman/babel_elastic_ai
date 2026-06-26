@@ -22,6 +22,7 @@ declare module '@kbn/core/public' {
     http: {
       get<T = unknown>(path: string, options?: unknown): Promise<T>;
       post<T = unknown>(path: string, options?: unknown): Promise<T>;
+      delete<T = unknown>(path: string, options?: unknown): Promise<T>;
     };
   }
 
@@ -32,6 +33,7 @@ declare module '@kbn/core/public' {
     http: {
       get<T = unknown>(path: string, options?: unknown): Promise<T>;
       post<T = unknown>(path: string, options?: unknown): Promise<T>;
+      delete<T = unknown>(path: string, options?: unknown): Promise<T>;
     };
   }
 

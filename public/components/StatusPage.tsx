@@ -15,6 +15,8 @@ import {
 import { ApiService } from '../services/api';
 import type { SigmaRepo } from '../services/api';
 import { AiProviderSettings } from './AiProviderSettings';
+import { AgentBuilderStatus } from './AgentBuilderStatus';
+import { McpConnectionInfo } from './McpConnectionInfo';
 
 function StatusBadge({ status }: { status: string }) {
   const color = status === 'ok' ? 'success' : status === 'degraded' ? 'warning' : 'danger';
@@ -171,7 +173,14 @@ export const StatusPage: React.FC<{ apiService: ApiService }> = ({ apiService })
       )}
 
       <EuiHorizontalRule margin="m" />
+      <EuiTitle size="xs"><h4>AI connectivity</h4></EuiTitle>
+      <EuiText size="xs" color="subdued">Three ways to wire AI — pick whatever fits your deployment.</EuiText>
+      <EuiSpacer size="s" />
       <AiProviderSettings apiService={apiService} />
+      <EuiSpacer size="m" />
+      <AgentBuilderStatus apiService={apiService} />
+      <EuiSpacer size="m" />
+      <McpConnectionInfo />
 
       <EuiSpacer size="m" />
       <EuiButton onClick={fetchStatus} iconType="refresh" size="s">Refresh Status</EuiButton>

@@ -262,7 +262,15 @@ export function createApiService(http: HttpService) {
     },
 
     setupAgentBuilder() {
-      return http.post(`${BASE}/agent-builder/setup`);
+      return http.post<{ success: boolean; agents: AgentBuilderActionResult[] }>(`${BASE}/agent-builder/setup`);
+    },
+
+    removeAgentBuilder() {
+      return http.delete<{ agents: AgentBuilderActionResult[] }>(`${BASE}/agent-builder/teardown`);
+    },
+
+    getAgentBuilderStatus() {
+      return http.get<AgentBuilderStatus>(`${BASE}/agent-builder/status`);
     },
 
     getAnthropicKey() {
@@ -311,6 +319,18 @@ export interface KibanaConnector {
   id: string;
   name: string;
   connector_type_id: string;
+}
+
+export interface AgentBuilderActionResult {
+  id: string;
+  status: string;
+  message?: string;
+}
+
+export interface AgentBuilderStatus {
+  available: boolean;
+  reason?: string;
+  agents: Array<{ id: string; name: string; registered: boolean }>;
 }
 
 export type ApiService = ReturnType<typeof createApiService>;
