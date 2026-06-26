@@ -226,6 +226,71 @@ docker-compose up --build -d  # rebuild images (after source changes)
 
 ---
 
+## AI Assistant — model & key setup
+
+Babel's AI features (draft a rule from IOCs or an alert, explain a rule, improve a rule, and the chat assistant) call a Large Language Model through a provider **you** choose. **Out of the box, Babel is configured to use a local model served by Ollama — no API key, and no detection data leaves your host.** You can switch providers at any time.
+
+Configure it in the UI: open **Babel → ⚙ gear icon → AI Provider** (in the *Integration & Status* panel). Pick one of the four options below.
+
+> **Prerequisite:** the AI endpoints live in the **Sigma API** (`server/api`) — the `sigma-api` container the Docker stack builds. If you run a different/older API, the AI panel will have nothing to call.
+
+### Option A — Local model via Ollama (default; best for sensitive data)
+
+1. Install [Ollama](https://ollama.com) on the **Docker host** and make sure it's running (`ollama serve` — it listens on `:11434`).
+2. Pull a model. Babel's shipped default is:
+   ```bash
+   ollama pull hf.co/yuxinlu1/gemma-4-12B-coder-fable5-composer2.5-v1-GGUF:Q4_K_M
+   ```
+   Any Ollama model works (`llama3.2`, `mistral`, `codestral`, …).
+3. In **AI Provider**, choose **OpenAI-compatible (Ollama, LM Studio, llama.cpp …)** and set:
+   - **Base URL** — `http://host.docker.internal:11434/v1` (Docker stack) or `http://localhost:11434/v1` (Sigma API running directly on the host)
+   - **Model name** — the exact name you pulled
+   - **API Key** — leave blank
+4. **Save.** If you keep the shipped default, steps 1–2 are all you need.
+
+> **Networking:** the Sigma API runs in a container and must reach Ollama on the host via `host.docker.internal`, **not** `localhost`. The compose file already adds the `host.docker.internal` host-gateway mapping (needed on Linux).
+>
+> **Hardware:** a 12B model at Q4 wants ~8 GB RAM/VRAM and runs ~30–60 s/request on CPU. Use a smaller quant (Q3/Q2) or model to go faster.
+
+Other OpenAI-compatible servers (LM Studio, `llama.cpp --server`) work identically — point **Base URL** at their `/v1` endpoint.
+
+### Option B — Anthropic Claude (hosted)
+
+1. Get a key from the Anthropic Console.
+2. **AI Provider → Anthropic Claude** → paste the key (`sk-ant-…`) and set a model (default `claude-sonnet-4-6`) → **Save.**
+
+Instead of the UI, you can supply the key as an environment variable on the Sigma API container:
+
+```yaml
+# docker-compose.yml → sigma-api → environment:
+- ANTHROPIC_API_KEY=sk-ant-…
+```
+
+### Option C — OpenAI / Azure OpenAI (hosted)
+
+**AI Provider → OpenAI** → paste `sk-…`, set the model (`gpt-4o`), and **Base URL** (default `https://api.openai.com/v1`; use your Azure endpoint for Azure OpenAI) → **Save.** Env-var fallback: `OPENAI_API_KEY` on the Sigma API container.
+
+### Option D — Elastic Connector (keys stay in Kibana — most secure)
+
+No API key is stored in Babel — credentials live in Kibana's encrypted connector.
+
+1. In Kibana: **Stack Management → Connectors** → create a Generative AI connector — OpenAI (`.gen-ai`), AWS Bedrock (`.bedrock`), Google Gemini (`.gemini`), or Elastic Inference (`.inference`).
+2. **AI Provider → Elastic Connector (Stack Management)** → pick your connector from the list → **Save.**
+
+Inference then runs through Kibana's Actions framework, so model credentials never pass through Babel or leave Kibana.
+
+### Where keys are stored
+
+| Provider | Credential location |
+|---|---|
+| Ollama / local | none needed |
+| Anthropic / OpenAI / OpenAI-compatible | `sui_config` Elasticsearch index (masked on read) — or an env var on the `sigma-api` container |
+| Elastic Connector | Kibana encrypted saved object (never stored in Babel) |
+
+For sensitive detection content, prefer **Ollama (local)** or an **Elastic Connector**. When a hosted provider is selected, rule/alert text is sent to that vendor — see [SECURITY.md](SECURITY.md) §9 (AI data egress) and restrict the `sui_config` index to administrators.
+
+---
+
 ## Architecture
 
 Babel is a **Kibana plugin** with the heavy lifting pushed out to a separate **Sigma API**. The plugin itself is deliberately thin — a React UI in the browser and a Kibana server plugin that proxies requests, reads/writes Elasticsearch, and deploys detection rules. SIGMA→query conversion, validation, coverage analysis, and AI generation all run in an out-of-process Python service, so Kibana stays pure TypeScript with no Python runtime inside it. The AI features are **provider-agnostic** and default to a **local model served by Ollama**, and an optional **MCP server** exposes the same capabilities to Claude Code / Desktop.
