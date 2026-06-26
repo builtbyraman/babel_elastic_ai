@@ -1,11 +1,11 @@
-# Babel
+# Babel + AI
 
 Cybersecurity is a literal Babel — every platform speaks a different dialect, and detection rules written for one rarely run on another. Babel reverses the challenge: Built on the updated [SIGMA](https://sigmahq.io/) open standard and running natively inside modernized Elastic and Kibana, it lets security teams author, convert, test, deploy, and track detection rules across platforms and tools from a single interface aligned to the incident response lifecycle and tactics, techniques, and procedures.
 
 > **Babel is a Kibana plugin — not a Fleet integration.**
 > It cannot be installed from the Kibana Integrations page. Install it via Docker Compose: `docker-compose up --build -d` — the full stack starts automatically. See [Quick start](#quick-start-docker-compose).
 
-## Screenshots
+## Solution Views
 
 ### Rule Editor
 Write SIGMA rules in the YAML editor (left), see auto-populated fields in the Visual Editor (center), and get instant format conversion in the Elasticsearch Output panel (right). One-click **Open in Discover**, **Backtest**, and **Deploy** actions sit above the output.
@@ -16,6 +16,16 @@ Write SIGMA rules in the YAML editor (left), see auto-populated fields in the Vi
 Load any rule from the library to see its full SIGMA YAML, auto-populated Visual Editor fields (title, status, level, description, logsource, MITRE tags, IR phase), and live converted output. Here an AWS CloudTrail rule converts to EQL in one click.
 
 ![AWS Route S3 rule loaded in the editor with MITRE tags and EQL conversion output](docs/screenshots/01_editor_main_EQL.png)
+
+### AI Assistant — draft from an IOC
+Draft, explain, and improve SIGMA rules with the model of your choice — a local Ollama model by default, so nothing leaves your host. The **IOC → Rule** tab turns an indicator (here an IP) into a complete rule — logsource, detection, level, MITRE tags, false positives — ready to **Load into Editor**. Sibling tabs cover **Alert → Rule**, **Explain**, and **Improve**.
+
+![AI Detection Assistant generating a SIGMA rule from an IOC, beside the YAML and visual editors](docs/screenshots/01_ai_assistant_editor.png)
+
+### AI Assistant — chat from a CVE or threat report
+The **Chat** tab is a conversational detection-engineering assistant. Paste a CVE write-up or threat-intel URL — or just describe a behavior — and it reads the advisory and drafts a matching rule; here one link yields a detection for a Cisco SD-WAN authentication bypass (CVE-2026-20182). The rule open in your editor rides along as context on every message.
+
+![AI Detection Assistant chat turning a CVE URL into a SIGMA rule](docs/screenshots/01_ai_assistant_chat.png)
 
 ### Multi-Format Conversion
 Switch the output format from the dropdown — Lucene, EQL, ES|QL, Query DSL, Kibana NDJSON, SIEM Rule, or ElastAlert — and the converted query updates instantly.
@@ -62,6 +72,13 @@ The Settings panel shows live connectivity to the Babel API and Elasticsearch, a
 
 - **YAML editor** — write and validate SIGMA rules with real-time syntax feedback
 - **Visual rule builder** — construct rules without writing raw YAML
+- **AI Assistant** — LLM-powered help for detection engineering, using the model of your choice — a local model via Ollama by default (no data leaves your host), or Anthropic Claude, OpenAI / OpenAI-compatible endpoints, or an Elastic GenAI connector:
+  - Draft a SIGMA rule from a list of IOCs
+  - Draft a SIGMA rule from a Kibana or Security Onion alert
+  - Explain a rule in plain English — detection logic, log sources, MITRE ATT&CK mapping, false positives, and tuning suggestions
+  - Improve a rule against your live ECS field mappings, with a summary of what changed and why
+  - Chat assistant for interactive rule authoring and detection-engineering questions
+  - Provider-agnostic and configurable in Settings; see [AI Assistant — model & key setup](#ai-assistant--model--key-setup)
 - **Multi-SIEM conversion** — translate rules to 8 output formats:
   - Lucene query string
   - Query DSL
