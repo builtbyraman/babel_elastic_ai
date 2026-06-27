@@ -265,6 +265,8 @@ Babel offers **three ways to connect AI** — pick whatever fits your deployment
 | **2. Elastic AI Assistant** (Agent Builder) | Babel's SIGMA agents inside Kibana's native Assistant | No | Elastic Cloud / managed Kibana; teams who work in Elastic's UI |
 | **3. External agents (MCP)** | Claude Desktop / Code driving Babel's tools | No | Analysts using Claude on their workstation |
 
+> **The three methods are independent.** The in-app AI panel (Method 1) calls your chosen LLM **directly** through the Sigma API — the MCP is *not* involved. The MCP (Method 3) is a separate, optional integration that only matters when you point an external agent like Claude Desktop at Babel; it's never in the loop for the in-app panel.
+
 **Method 1 — In-app model** has four provider options, configured under *AI connectivity → AI Provider*. Pick one below.
 
 > **Prerequisite:** the AI endpoints live in the **Sigma API** (`server/api`) — the `sigma-api` container the Docker stack builds. If you run a different/older API, the AI panel will have nothing to call.
@@ -305,9 +307,11 @@ Instead of the UI, you can supply the key as an environment variable on the Sigm
 
 **AI Provider → OpenAI** → paste `sk-…`, set the model (`gpt-4o`), and **Base URL** (default `https://api.openai.com/v1`; use your Azure endpoint for Azure OpenAI) → **Save.** Env-var fallback: `OPENAI_API_KEY` on the Sigma API container.
 
+> **Why Azure is here but not AWS/GCP:** this provider speaks the **OpenAI API**, so Azure OpenAI works by simply changing the **Base URL** to your Azure endpoint and using your **deployment name** as the model. **AWS Bedrock** and **Google Gemini** use their own (non-OpenAI) APIs, so they're reached through a **Kibana connector** instead — see Option D. Babel is not Azure-only.
+
 ### Option D — Elastic Connector (keys stay in Kibana — most secure)
 
-No API key is stored in Babel — credentials live in Kibana's encrypted connector.
+No API key is stored in Babel — credentials live in Kibana's encrypted connector. **This is also the path for AWS Bedrock (Claude, Llama, …) and Google Gemini**, which aren't OpenAI-compatible and so can't use Option C.
 
 1. In Kibana: **Stack Management → Connectors** → create a Generative AI connector — OpenAI (`.gen-ai`), AWS Bedrock (`.bedrock`), Google Gemini (`.gemini`), or Elastic Inference (`.inference`).
 2. **AI Provider → Elastic Connector (Stack Management)** → pick your connector from the list → **Save.**
