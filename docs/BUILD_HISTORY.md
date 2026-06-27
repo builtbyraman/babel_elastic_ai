@@ -47,26 +47,6 @@ sigma_ai is a SIGMA detection engineering platform built as a Kibana plugin with
 
 ---
 
-## Phase 3 — MCP Hardening (Multi-Tenancy, Auth, Encryption, Migrations)
-
-**What was built:**
-- Full MCP platform rewrite: FastAPI + Celery + Redis + PostgreSQL at port 8001
-- Multi-tenant model — `Tenant`, `ApiKey`, `AuditLog` tables; all CRUD scoped by `tenant_id`
-- API key auth — `{prefix}.{secret}` format; prefix stored plaintext for O(1) lookup, full key bcrypt-hashed
-- AES-GCM secrets encryption — `SECRETS_KEY` env var (base64 32 bytes), `mcp/api/crypto.py`
-- Alembic migrations — replaces `create_all`; migration 001 handles fresh + existing DBs
-- Bootstrap seeding — `BOOTSTRAP_TENANT` + `BOOTSTRAP_API_KEY` env vars
-- Prometheus metrics — `prometheus-fastapi-instrumentator`, `/metrics` endpoint
-- Worker secrets isolation — API resolves + decrypts secrets at dispatch time; worker receives `resolved_auth_headers` only
-- Proxy routes: MCP exposes `/v1/status`, `/v1/fields`, `/v1/fields/suggest`, `/v1/rules/validate`, `/v1/coverage`
-
-**Key files:**
-- `mcp/api/crypto.py`, `auth.py`, `crud.py`, `models.py`
-- `mcp/api/alembic/versions/001_initial_schema.py`
-- `mcp/worker/tasks.py` — updated to receive pre-resolved auth headers
-
----
-
 ## Pre-Tier Audit — 7 Bugs Fixed
 
 Before building features, a full cross-chat audit identified and fixed:
@@ -231,7 +211,6 @@ Footer "Load into Editor" button loads generated YAML directly into the main edi
 | Layer | Status |
 |---|---|
 | Python FastAPI (port 8000) | Phase 1–2 complete + Tier 1–2 additions |
-| MCP Platform (port 8001) | Phase 3 hardened — multi-tenant, encrypted, Alembic |
 | Kibana Plugin (server routes) | All tiers proxied |
 | Frontend | YamlEditor + ConversionPanel + AI Assistant Panel |
 | CI/CD | GitHub Actions validate + deploy workflow |
@@ -332,7 +311,6 @@ Footer "Load into Editor" button loads generated YAML directly into the main edi
 | Layer | Status |
 |---|---|
 | Python FastAPI (port 8000) | Phase 1–2 complete + Tier 1–2 additions |
-| MCP Platform (port 8001) | Phase 3 hardened — multi-tenant, encrypted, Alembic |
 | Kibana Plugin (server routes) | Tiers 1–2 proxied |
 | Frontend | YamlEditor + ConversionPanel + AI Assistant Panel |
 | CI/CD | GitHub Actions validate + deploy workflow |
