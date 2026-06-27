@@ -712,7 +712,7 @@ api/              Conversion-only Flask API (bundled in the distribution zip)
 scripts/
   build.js        Build orchestrator (typecheck → compile → webpack → zip)
 .github/
-  workflows/ci.yml   CI: typecheck, test, build, upload zip artifact
+  workflows/ci.yml   CI — plugin typecheck/test/build (+ zip artifact) and Sigma API pytest
 ```
 
 ---

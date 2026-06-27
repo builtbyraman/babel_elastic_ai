@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  plugin:
+    name: Plugin — typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Unit tests (Jest)
+        run: npm test
+
+      - name: Build plugin (+ distributable zip)
+        run: KIBANA_VERSION=9.3.4 npm run build
+
+      - name: Upload distributable
+        uses: actions/upload-artifact@v4
+        with:
+          name: babel-plugin
+          path: target/babel-*.zip
+          if-no-files-found: error
+
+  api:
+    name: Sigma API — pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install API dependencies
+        run: pip install -r server/api/requirements.txt
+
+      - name: Run tests
+        working-directory: server/api
+        env:
+          REQUIRE_AUTH: 'true'
+          # So the conversion service can find server/translation_script/sigma/sigma_converter.py
+          PLUGIN_ROOT: ${{ github.workspace }}
+        run: python -m pytest tests/ -q
