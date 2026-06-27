@@ -52,7 +52,7 @@ The Data Sources tab maps your Elasticsearch indices against SIGMA logsource cat
 ![Data Source Awareness tab showing 11 logsource products mapped to Elasticsearch indices](docs/screenshots/05_datasource_coverage.png)
 
 ### Rule Library
-The Select Rule overlay searches all 3,730 synced rules by title, description, or technique ID. Filter by tactic or IR phase; click any row to load the rule directly into the editor.
+The Select Rule overlay searches all synced rules by title, description, or technique ID. Filter by tactic or IR phase; click any row to load the rule directly into the editor.
 
 ![Rule library overlay showing 3,730 rules with tactic and severity tags](docs/screenshots/06_rule_library.png)
 
@@ -352,6 +352,8 @@ In **Integration & Status → AI connectivity → Elastic AI Assistant (Agent Bu
 ### Method 3 — External agents (MCP / Claude Desktop)
 
 Babel ships a Model Context Protocol server (`server/mcp/server.py`) that exposes its SIGMA tools to an external agent such as **Claude Desktop or Claude Code**. The agent's own model does the reasoning, so no local or in-cluster model is needed.
+
+**What it's for:** this is the path for working *inside an AI agent* rather than the Kibana UI — and it lets the agent **do real detection engineering, not just suggest it.** The agent calls Babel's tools to convert (real pySigma), validate, **backtest against your live Elasticsearch**, search your rule library, and deploy — so it works against your actual stack instead of guessing. For example, in Claude Desktop you can say *"draft a SIGMA rule from this CVE, validate it, and backtest it against `logs-*`"* and the agent chains the tools for you. It's **optional and additive** — separate from the in-app panel (Method 1), which talks to the LLM directly.
 
 In **Integration & Status → AI connectivity → External agents (MCP)**, copy the `.mcp.json` template, fill in the paths and your Kibana password, and add it to your MCP client. The config holds a credential — keep it out of version control (Babel git-ignores `.mcp.json`) and scope the account to least privilege. See [SECURITY.md](SECURITY.md) §10.
 
